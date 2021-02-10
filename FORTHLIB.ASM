@@ -156,34 +156,42 @@ bEQ:
 
 ; --- Control flow ---
 
-; ( -- )
-hBRANCH:
-    dw hEQ
-    db 6, 'bra'
-bBRANCH:
-    pop bx
-    add bx, [bx]
-    push bx
-    ret
-
 ; ( f -- )
-h0BRANCH:
-    dw hBRANCH
-    db 7, '0br'
-b0BRANCH:
+hIFNZ:
+    dw hEQ
+    db 4, 'if!'
+bIFNZ:
     popreg ax
     and ax,ax
-    jz bBRANCH
-    mov bx, sp
-    add word ptr [bx], 2
-    ret
+    jnz @@done
+    pop ax    ; Skip three bytes forward (= 1 STC instruction)
+    add ax,3  ; Cannot,skip a compiled "push literal" directive because
+    push ax   ; those are bigger than three bytes.
+@@done: ret
+
+; ( -- )
+hRET:
+    dw hIFNZ
+    db 3, 'ret'
+bRET:
+    pop ax  ; consume our return address, sp now = caller's return address
+    ret     ; return from caller
+
+; ( -- )
+hREDO:
+    dw hRET
+    db 4, 'red'
+bREDO:
+    mov bx, word ptr [vLATEST]  ; dictionary header of word being defined...
+    add bx, 6                   ; ...first statement of word being defined...
+    jmp bx                      ; ...yeah, jump there.
 
 ; --- Compiler/interpreter ---
 
 ; Sets the input source to console (keyboard)
 ; ( -- )
 hQUERY:
-    dw h0BRANCH
+    dw hREDO
     db 5, 'que'
 bQUERY:
     mov word ptr [vINPUT_SOURCE_FN], offset Line
