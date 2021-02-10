@@ -165,7 +165,7 @@ bIFNZ:
     and ax,ax
     jnz @@done
     pop ax    ; Skip three bytes forward (= 1 STC instruction)
-    add ax,3  ; Cannot,skip a compiled "push literal" directive because
+    add ax,3  ; Cannot skip a compiled "push literal" directive because
     push ax   ; those are bigger than three bytes.
 @@done: ret
 
@@ -182,6 +182,7 @@ hREDO:
     dw hRET
     db 4, 'red'
 bREDO:
+    pop ax  ; this function won't be returning so discard our return address!
     mov bx, word ptr [vLATEST]  ; dictionary header of word being defined...
     add bx, 6                   ; ...first statement of word being defined...
     jmp bx                      ; ...yeah, jump there.
