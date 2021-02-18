@@ -1,5 +1,5 @@
 ; --- Macros ---
-oldlink = hQUIT
+oldlink = hCOLD
 
 pushreg MACRO a
     add bp, 2

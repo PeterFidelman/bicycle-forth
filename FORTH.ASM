@@ -77,9 +77,9 @@ EntryPoint:
 ; - NUMBER, to translate a word to a number.
 ; - FIND, to translate a word to a dictionary entry.
 ; - ABORT, to reset the interpreter's state on error
-; - QUIT, the interpreter's main loop
-; - [
-; - ]
+; - COLD, the interpreter's entry point
+; - [, to enter interpreting mode
+; - ], to enter compiling mode
 ;
 ; Because we're about to define our first Forth word, we also need to pick a
 ; dictionary format, so the interpreter can find these words later (this is
@@ -120,6 +120,7 @@ ENDM
 ; ( -- )
 ; Out: a = address of buffer
 LINE:
+    ; Use DOS function 0Ah to read a line
     mov bx, 0FB80h
     mov word ptr [bx], 126
     mov dx, bx
@@ -128,12 +129,12 @@ LINE:
     ; Reset the (globally visible) input cursor to point at the first
     ; character read.
     mov word ptr [vINPUT_CURSOR], 0FB82h
-    ; Emit a line feed (for some reason DOS doesn't)
-    lea dx, word ptr [@@cr]
+    ; Emit CR+LF to move past line just typed (for some reason DOS doesn't)
+    lea dx, word ptr [crlf_]
     printdx
     ret
-@@cr:
-db 0dh, 0ah, '$'
+errmsg_: db '?'
+crlf_: db 13, 10, '$'
 
 ; Selects which input source (and buffer) to use.
 
@@ -278,10 +279,10 @@ hABORT:
     db 5, 'abo'
 bABORT:
     mov word ptr [vINPUT_SOURCE_FN], offset Line
-    lea dx, word ptr [@@msg]
+    lea dx, word ptr [errmsg_]
     printdx
     jmp WARM
-@@msg: db '? $'
+
 
 ; This tells the outer interpreter whether to interpret words or compile words.
 vINTERPRETING: dw 0FFFFh  ; 0 = compiling, nonzero = interpreting
@@ -331,12 +332,7 @@ bCOLD:
 WARM:
     ; Set up fPSP for an empty data stack.  See the memory map.
     mov bp, 0FBFEh
-    jmp bQUIT
 
-hQUIT:
-    dw hCOLD
-    db 4, 'qui'
-bQUIT:
     ; Clear the return stack
     mov sp, 0FFFEh
 
@@ -346,9 +342,6 @@ bQUIT:
     ; Switch to interpreting
     call bLBRACKET
 
-    ; Print OK
-    lea dx, word ptr [ok_]
-    printdx
 QUERY:
     call [word ptr vINPUT_SOURCE_FN]
 INTERPRET:
@@ -358,7 +351,7 @@ INTERPRET:
     jne @@is_word
 ; no more words
     sub bp, 4
-    jmp bQUIT
+    jmp QUERY
 @@is_word:
     call bFIND                 ; ( a len immed? xt )
     mov bx, [bp]
@@ -372,7 +365,7 @@ INTERPRET:
     or ax, dx
 ; nonzero if immediate or interpreting
     jz @@compile_call
-    call bx
+    call bx                    ; execute the word
     jmp @@get_word
 @@compile_call:
     mov di, word ptr [vHERE]
@@ -391,8 +384,8 @@ INTERPRET:
     sub bp, 2                  ; ( n )
 ; is a valid number, on stack
     cmp word ptr [vINTERPRETING], 0
-    je @@compile_push
-    jmp @@get_word
+    je @@compile_push          ; compiling. generate code to push n onto stack
+    jmp @@get_word             ; interpreting, leave n on stack and move on
 @@compile_push:
     mov bx, [bp]
     sub bp, 2                  ; stack is empty, bx = n
@@ -409,7 +402,6 @@ INTERPRET:
     jmp @@get_word
 @@err:
     jmp bABORT
-ok_: db 'OK $'
 
 ; The "LATEST" variable points at the dictionary header of the newest word.
 ; This uses the "lastheader" constant set in the file included below.
