@@ -137,9 +137,12 @@ errmsg_: db '?'
 crlf_: db 13, 10, '$'
 
 ; Selects which input source (and buffer) to use.
+; We'll start off by reading from "Free", i.e. the end of the COM file,
+; under the assumption that a startup script has been stashed there.
+; Because "Free" is also the default starting location for compilation,
+; input stream consumption will race compilation, and if the latter
+; catches up you're in for !!FUN!! (and an ? error message if you're lucky).
 
-;vINPUT_CURSOR: dw 0fb82h   ; Address of first unread character in input buffer
-;vINPUT_SOURCE_FN: dw Line  ;  Address of function to refill the buffer
 vINPUT_CURSOR: dw Free - 1 ; Address of first unread character in input buffer
 vINPUT_SOURCE_FN: dw adv   ; Address of function to refill the buffer
 
