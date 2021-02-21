@@ -60,7 +60,6 @@ bKEY:
     pushreg ax
     ret
 
-
 ; ( n -- )
 hEMIT:
     dw hKEY
@@ -180,12 +179,19 @@ bRET:
 ; ( -- )
 hREDO:
     dw hRET
-    db 4, 'red'
+    db 84h, 'red'  ; immediate
 bREDO:
-    pop ax  ; this function won't be returning so discard our return address!
     mov bx, word ptr [vLATEST]  ; dictionary header of word being defined...
     add bx, 6                   ; ...first statement of word being defined...
-    jmp bx                      ; ...yeah, jump there.
+    mov di, word ptr [vHERE]
+    mov si, di
+    mov al, 0e9h                ; "jmp"
+    stosb
+    neg si
+    lea ax, [bx + si - 3]
+    stosw
+    mov word ptr [vHERE], di
+    ret
 
 ; --- Compiler/interpreter ---
 
