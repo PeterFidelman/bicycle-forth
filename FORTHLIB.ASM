@@ -262,7 +262,7 @@ hSEMICOLON:
     db 81h, ';..'  ; immediate
 bSEMICOLON:
     mov di, word ptr [vHERE]
-    mov al, 0C3h                  ; ret
+    mov al, 0C3h                  ; "ret"
     stosb
     mov word ptr [vHERE], di
     call bLBRACKET                ; enter interpreting mode
@@ -279,4 +279,99 @@ bCOMMA:
     add word ptr [vHERE], 2
     ret
 
-lastheader = hCOMMA
+; Specify the phase II action of a defining-word
+hCTOR:
+    dw hCOMMA
+    db 5, 'cto'
+bCTOR:
+    call bCREATE
+    mov di, word ptr [vHERE]
+    mov al, 0E8h
+    stosb          ; "call"
+    stosw          ; emit placeholder for call target, to be filled in later
+    mov word ptr [vHERE], di
+    ret
+
+CtorFixup:
+    ; Find call source
+    mov si, word ptr [vLATEST]  ; start of dictionary entry for instance word
+    add si, 6                   ; advance to CALL instruction
+    ; Find call target
+    pop bx                      ; our return address (in the class word)
+    push bx
+    inc bx                      ; advance past "ret" to 1st inst of IMPL> part
+    ; Now do the fixup
+    neg si
+    lea ax, [bx + si - 3]
+    neg si
+    mov [si + 1], ax
+    ret
+
+; Specify the phase III action of a defining-word
+hIMPL:
+    dw hCTOR
+    db 85h, 'imp'  ; immediate
+bIMPL:
+    mov di, word ptr [vHERE]
+    mov si, di
+    neg si
+    mov al, 0E8h   ; "call"
+    stosb
+    lea bx, CtorFixup
+    lea ax, [bx + si - 3]  ; compute the rel16 call target of the function
+    stosw                  ; that fixes the call target in the instance word
+    mov al, 0C3h   ; "ret"
+    stosb
+    mov ax, 4558h  ; move datafield address from return stack to data stack
+    stosw
+    mov ax, 8945h
+    stosw
+    mov ax, 0046h
+    stosw
+    mov word ptr [vHERE], di
+    ret
+
+; ( -- xt )
+hXT:
+    dw hIMPL
+    db 82h, 'xt.'     ; immediate
+bXT:
+    call bWORD        ; a n
+    call bFIND        ; a n imm? xt
+    sub bp, 6
+    mov ax, [bp + 6]
+    mov [bp], ax      ; xt
+    ret
+
+; ( xt -- )
+hCALL:
+    dw hXT
+    db 4, 'cal'
+bCALL:
+    popreg bx
+    call bx
+    ret
+
+; --- Memory ---
+
+; ( addr -- n )
+hAT:
+    dw hCALL
+    db 1, '@..'
+bAT:
+    mov bx, [bp]
+    mov bx, [bx]
+    mov [bp], bx
+    ret
+
+; ( n addr -- )
+hBANG:
+    dw hAT
+    db 1, '!..'
+bBANG:
+    popreg bx  ; addr
+    popreg ax  ; value
+    mov [bx], ax
+    ret
+
+lastheader = hBANG
