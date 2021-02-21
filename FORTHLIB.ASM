@@ -226,10 +226,23 @@ bCREATE:
     sub bp, 4
     ret
 
+; Mark the current word as immediate.
+; ( -- )
+hIMMEDIATE:
+    dw hCREATE
+    db 89h, 'imm'  ; this word is itself immediate!
+bIMMEDIATE:
+    mov bx, word ptr [vLATEST]  ; start of dictionary entry
+    add bx, 2                   ; advance to length/flags field
+    mov al, [bx]
+    or al, 80h
+    mov [bx], al
+    ret
+
 ; Begins a colon definition.  Its name is read from the input stream.
 ; ( -- )
 hCOLON:
-    dw hCREATE
+    dw hIMMEDIATE
     db 1, ':..'
 bCOLON:
     call bCREATE

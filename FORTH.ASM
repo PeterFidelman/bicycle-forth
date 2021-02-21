@@ -150,12 +150,29 @@ adv:
     inc word ptr [vINPUT_CURSOR]
     ret
 
+; Retrieves a letter from the input buffer
+; If the letter is non-0Dh then moves to the next letter
+; ( -- n )
+hLETTER:
+    dw 0  ; This is the first word in the dictionary.
+    db 6, 'let'
+bLETTER:
+    mov si, word ptr [vINPUT_CURSOR]
+    xor ax, ax
+    mov al, [si]
+    add bp, 2
+    mov [bp], ax
+    cmp al, 0Dh
+    je @@eol
+    inc word ptr [vINPUT_CURSOR]
+@@eol: ret
+
 ; Retrieves a whitespace-delimited word from the input buffer.
 ; ( -- a n | x 0 )
 ; Out: n = number of bytes at a, a = word start
 ; Out: 0 = end of buffer reached (0Dh)
 hWORD:
-    dw 0
+    dw hLETTER
     db 4, 'wor'
 bWORD:
     mov si, word ptr [vINPUT_CURSOR]
