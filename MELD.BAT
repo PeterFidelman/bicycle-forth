@@ -1,2 +1,2 @@
-copy /b forth.com + forthlib.f f.com
+copy /b core.com + forthlib.f f.com
 

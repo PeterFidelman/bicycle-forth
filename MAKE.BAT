@@ -1,3 +1,5 @@
 tasm forth.asm
 tlink /t /n forth.obj
-meld
+@del core.com
+@ren forth.com core.com
+@meld
