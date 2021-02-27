@@ -26,6 +26,7 @@
 ; 0000-00FF: DOS program segment prefix (PSP)
 ; 0100-....: Entry point / Forth setup code (You are here)
 ;*....-....: Forth outer interpreter*
+; [2000 bytes reserved for startup script]
 ; ....-....: Forth dictionary (grows towards higher addresses)
 ;    ...
 ;*FB80-FB81: Reserved for INT 21h function 0Ah*
@@ -348,7 +349,18 @@ hCOLD:
     dw hRBRACKET
     db 4, 'col'
 bCOLD:
-    ; TODO: Reset the dictionary.
+    ; Reset the dictionary.
+    lea ax, lastHeader
+    mov word ptr [vLATEST], ax
+    lea ax, [Free + 2000]
+    mov word ptr [vHERE], ax
+
+    ; Reset the input source
+    lea ax, [Free - 1]
+    mov word ptr [vINPUT_CURSOR], ax
+    lea ax, [adv]
+    mov word ptr [vINPUT_SOURCE_FN], ax
+
 WARM:
     ; Set up fPSP for an empty data stack.  See the memory map.
     mov bp, 0FBFEh
@@ -428,7 +440,7 @@ INTERPRET:
 vLATEST: dw lastheader
 
 ; The "HERE" variable points at the first free byte in the memory image.
-vHERE: dw Free
+vHERE: dw Free + 2000
 
 ; --- End of interpreter ---
 

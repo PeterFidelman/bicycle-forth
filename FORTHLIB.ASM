@@ -47,11 +47,33 @@ bDROP:
     sub bp, 2
     ret
 
+hTORETURN:
+    dw hDROP
+    db 2, '>r.'
+bTORETURN:
+    ; This is a slow implementation -- could be done inline instead!
+    popreg ax
+    pop bx
+    push ax
+    push bx
+    ret
+
+hFROMRETURN:
+    dw hTORETURN
+    db 2, 'r>.'
+bFROMRETURN:
+    ; This is a slow implementation -- could be done inline instead!
+    pop bx
+    pop ax
+    pushreg ax
+    push bx
+    ret
+
 ; --- I/O ---
 
 ; ( -- n )
 hKEY:
-    dw hDROP
+    dw hFROMRETURN
     db 3, 'key'
 bKEY:
     xor ah, ah
@@ -138,14 +160,32 @@ bSUB:
     sub [bp], ax
     ret
 
+; ( a b -- a&b )
+hAND:
+    dw hSUB
+    db 3, 'and'
+bAND:
+    popreg ax
+    and [bp], ax
+    ret
+
+; ( a b -- a|b )
+hOR:
+    dw hAND
+    db 2, 'or.'
+bOR:
+    popreg ax
+    or [bp], ax
+    ret
+
 ; ( a b -- f )
 hEQ:
-    dw hSUB
+    dw hOR
     db 1, '=..'
 bEQ:
     xor bx, bx
-    mov ax, [bp]
-    cmp ax, [bp - 2]
+    mov ax, [bp - 2]
+    cmp ax, [bp]
     jne @@not_eq
     dec bx
 @@not_eq:
@@ -153,11 +193,25 @@ bEQ:
     mov [bp], bx
     ret
 
+; ( a -- f )
+hGT0:
+    dw hEQ
+    db 2, '>0.'
+bGT0:
+    xor bx, bx
+    mov ax, [bp]
+    cmp ax, 0
+    jle @@not_gt
+    dec bx
+@@not_gt:
+    mov [bp], bx
+    ret
+
 ; --- Control flow ---
 
 ; ( f -- )
 hIFNZ:
-    dw hEQ
+    dw hGT0
     db 4, 'if!'
 bIFNZ:
     popreg ax
@@ -374,4 +428,130 @@ bBANG:
     mov [bx], ax
     ret
 
-lastheader = hBANG
+hM2S:
+    dw hBANG
+    db 2, '>s.'
+bM2S:
+    push 0b900h
+    pop es
+
+    lea si, Free
+    xor di, di
+    mov cx, 2000
+
+@@screen:
+    lodsb
+    mov ah, 07h
+    stosw
+    loop @@screen
+
+    push ds
+    pop es
+
+    ret
+
+hS2M:
+    dw hM2S
+    db 2, 's>.'
+bS2M:
+    push 0b900h
+    pop ds
+
+    xor si, si
+    lea di, Free
+    mov cx, 2000
+
+@@screen2:
+    lodsw
+    stosb
+    loop @@screen2
+
+    push es
+    pop ds
+    ret
+
+; Find first ctrl-Z in startup script region and replace it (and the rest
+; of the region) with spaces.  Useful for clearing out uninitialized memory.
+Trim:
+    lea di, Free
+    mov cx, 2000
+    mov al, 26    ; Ctrl-Z
+    repne scasb
+    mov al, 32
+    rep stosb
+    ret
+
+hEDIT:
+    dw hS2M
+    db 4, 'edi'
+bEDIT:
+    call Trim
+    call bM2S
+    mov ax, 0501h
+    int 10h
+    xor dx, dx
+    inc dx
+    xor bx, bx
+    inc bh
+    mov ah, 02h
+    int 10h
+@@eloop:
+    xor dx, dx
+    inc dx
+    xor ah, ah
+    int 16h
+    cmp al, 9    ; tab
+    je @@edone
+; Key handling
+    cmp al, 0
+    jne @@emit
+    dec dx
+    cmp ah, 48h
+    je @@eup
+    cmp ah, 50h
+    je @@edn
+    cmp ah, 4bh
+    je @@elt
+    cmp ah, 4dh
+    je @@ert
+    jmp @@emit
+@@eup:
+    mov dh, 0ffh
+    jmp @@emove
+@@edn:
+    mov dh, 01h
+    jmp @@emove
+@@elt:
+    mov dl, 0ffh
+    jmp @@emove
+@@ert:
+    mov dl, 01h
+    jmp @@emove
+@@emit:
+    mov ah, 0ah
+    xor bx, bx
+    inc bh
+    mov cx, 1
+    int 10h
+    ; Fall through
+@@emove:
+    mov di, dx
+    mov ah, 03h
+    xor bx, bx
+    inc bh
+    int 10h
+    mov bx, di
+    add dh, bh
+    add dl, bl
+    xor bx, bx
+    inc bh
+    mov ah, 02h
+    int 10h
+    jmp @@eloop
+@@edone:
+    call bS2M
+    mov ax, 0500h
+    int 10h
+    ret
+
+lastheader = hEDIT
