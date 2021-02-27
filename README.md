@@ -15,4 +15,4 @@
  Things Bicycle Forth will not be good at:
  - Not fastest possible applications
  - Not smallest possible applications
- - Not F83 or ANSI compliant (but surely influenced!)
+ - Not F83 or ANSI compliant - original design choices will be made!
