@@ -47,6 +47,7 @@ bDROP:
     sub bp, 2
     ret
 
+; ( n -- r:n )
 hTORETURN:
     dw hDROP
     db 2, '>r.'
@@ -58,6 +59,7 @@ bTORETURN:
     push bx
     ret
 
+; ( r:n -- n )
 hFROMRETURN:
     dw hTORETURN
     db 2, 'r>.'
@@ -69,11 +71,93 @@ bFROMRETURN:
     push bx
     ret
 
+; --- HW Interaction ---
+
+; ( n -- reg:ax )
+hTOAX:
+    dw hFROMRETURN
+    db 3, '>ax'
+bTOAX:
+    popreg ax
+    ret
+
+; ( reg:ax -- n )
+hFROMAX:
+    dw hTOAX
+    db 3, 'ax>'
+bFROMAX:
+    pushreg ax
+    ret
+
+; ( n -- reg:bx )
+hTOBX:
+    dw hFROMAX
+    db 3, '>bx'
+bTOBX:
+    popreg bx
+    ret
+
+; ( reg:bx -- n )
+hFROMBX:
+    dw hTOBX
+    db 3, 'bx>'
+bFROMBX:
+    pushreg bx
+    ret
+
+; ( n -- reg:cx )
+hTOCX:
+    dw hFROMBX
+    db 3, '>cx'
+bTOCX:
+    popreg cx
+    ret
+
+; ( reg:cx -- n )
+hFROMCX:
+    dw hTOCX
+    db 3, 'cx>'
+bFROMCX:
+    pushreg cx
+    ret
+
+; ( n -- reg:dx )
+hTODX:
+    dw hFROMCX
+    db 3, '>dx'
+bTODX:
+    popreg dx
+    ret
+
+; ( reg:dx -- n )
+hFROMDX:
+    dw hTODX
+    db 3, 'dx>'
+bFROMDX:
+    pushreg dx
+    ret
+
+; ( n -- )
+hINT:
+    dw hFROMDX
+    db 3, 'int'
+bINT:
+    push ax
+    mov ax, [bp]             ; get X, top item on stack... 
+    mov byte ptr [intx], al  ; ...modify code to call interrupt X
+    jmp flush                ; ..."useless" jump flushes instruction cache
+flush:                       ;    (see Agner: optimizing_assembly.pdf)
+    pop ax
+    db 0cdh                  ; "int"
+intx:  db 03h
+    sub bp, 2                ; pop X from stack
+    ret
+
 ; --- I/O ---
 
 ; ( -- n )
 hKEY:
-    dw hFROMRETURN
+    dw hINT
     db 3, 'key'
 bKEY:
     xor ah, ah
