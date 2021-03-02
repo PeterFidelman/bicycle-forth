@@ -215,37 +215,49 @@ bNUMBER:
     mov si, [bp - 2]
     xor ax, ax  ; accumulated sum
     xor bx, bx  ; digit
-    xor di, di  ; negative?
 ; assume failure
     mov word ptr [bp], 0
 ; negative number?
     cmp byte ptr [si], '-'
     jne @@length_check
     inc si
-    inc di
     dec cx
+    inc bx
 @@length_check:
+    push bx     ; save negative flag
     cmp cx, 0
     jle @@bail
 @@parse_digit:
-    mov bl, [si]
-    sub bl, '0'
-    cmp bl, 9
-    ja @@bail
-    mul word ptr [@@base]
+    push ax
+    push cx
+    mov al, [si]
+    lea di, higits
+    mov bx, word ptr [base]
+    lea cx, [bx + 1]         ; cx:=bx+1
+    repne scasb
+    sub bx, cx
+    pop cx
+    pop ax
+    cmp bl, byte ptr [base]  ; narrower access ok because little endian
+    jae @@bail
+; incorporate digit
+    mul word ptr [base]
     add ax, bx
     inc si
     loop @@parse_digit
-; if the number started with '-', negate it here
-    and di, di
-    jz @@ok
-    neg ax
-@@ok:
-    mov word ptr [bp - 2], ax
+; number is ok!
     mov word ptr [bp], -1
 @@bail:
+    pop bx      ; restore negative flag
+    and bx, bx
+    jz @@positive
+    neg ax
+@@positive:
+    mov word ptr [bp - 2], ax
     ret
-@@base:
+higits:
+    db '0123456789abcdef'
+base:
     dw 10
 
 ; Finds a word in the dictionary.

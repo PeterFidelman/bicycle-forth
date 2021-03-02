@@ -110,6 +110,9 @@ hDOT:
     db 1, '...'
 bDOT:
     popreg ax
+    mov bx, word ptr [base]
+    cmp bx, 10
+    jne @@decrec
     cmp ax, 0
     jge @@decrec
     ; add leading '-'
@@ -119,7 +122,6 @@ bDOT:
     int 10h
     pop ax
 @@decrec:
-    mov bx, 10
     call @@Entry
     ; add trailing space
     mov ax, 0e20h
@@ -127,7 +129,7 @@ bDOT:
     ret
 @@Entry:
     xor dx, dx
-    cmp ax, 10
+    cmp ax, bx
     jb @@BaseCase
 ; Recursive case
     div bx
@@ -135,16 +137,26 @@ bDOT:
     call @@Entry
     pop ax          ; remainder into al
 @@BaseCase:         ; fall through...
-    add al, 30h     ; putc '0'+al
+    mov si, ax
+    mov al, byte ptr [higits + si]
     mov ah, 0eh
     int 10h
+    ret
+
+; (  -- a )
+hBASE:
+    dw hDOT
+    db 4, 'bas'
+bBASE:
+    lea ax, [base]
+    pushreg ax
     ret
 
 ; --- Arithmetic ---
 
 ; ( a b -- a+b )
 hADD:
-    dw hDOT
+    dw hBASE
     db 1, '+..'
 bADD:
     popreg ax
