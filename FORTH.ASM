@@ -15,7 +15,7 @@
 ; Things Bicycle Forth will not be good at:
 ; - Not fastest possible applications
 ; - Not smallest possible applications
-; - Not F83 or ANSI compliant (but surely influenced!)
+; - Not F83 or ANSI compliant
 ;
 ; The first thing we need to do is decide on a memory map and set up Forth's
 ; virtual registers.
@@ -40,7 +40,6 @@
 ; And here are the register assignments.  I'll put a "f" in front of Forth's
 ; virtual register names, so we don't confuse them with the x86 registers.
 ;
-; fW:   General purpose register       --> BX (but not really needed for STC)
 ; fIP:  Interpreter pointer            --> IP (inevitably, because of STC)
 ; fPSP: Parameter (data) stack pointer --> BP
 ; fRSP: Return stack pointer           --> SP (inevitably, because of STC)
@@ -69,18 +68,26 @@ EntryPoint:
 ;   call DEMO
 ;   ret
 ;
-; This runtime can execute any STC threaded code that we give it.  But it
+; That runtime can execute any STC threaded code that we give it.  But it
 ; doesn't have an outer interpreter that can compile an input text stream
 ; into threaded code.  To make the outer interpreter, we need:
 ; - An input source filling an input buffer.  We'll define a word named
 ;   LINE as the console input source.
+; - LETTER, to fetch a letter from the input buffer.
 ; - WORD, to fetch a whitespace-delimited token (word) from the input buffer.
 ; - NUMBER, to translate a word to a number.
 ; - FIND, to translate a word to a dictionary entry.
-; - ABORT, to reset the interpreter's state on error
-; - COLD, the interpreter's entry point
-; - [, to enter interpreting mode
+; - ABORT, to reset the interpreter's state on error.
+; - [, to enter interpreting mode.
 ; - ], to enter compiling mode
+; - COLD, the interpreter's entry point.
+; 
+; And the following variables:
+; - vINPUT_CURSOR, address of first unread character in the input buffer.
+; - vINPUT_SOURCE_FN, address of function to refill the buffer.
+; - vINTERPRETING, whether to interpret words or compile words.
+; -,vLATEST, address of the dictionary header of the newest word.
+; - vHERE, address of the first free byte in the memory image.
 ;
 ; Because we're about to define our first Forth word, we also need to pick a
 ; dictionary format, so the interpreter can find these words later (this is
