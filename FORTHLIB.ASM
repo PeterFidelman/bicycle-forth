@@ -274,9 +274,19 @@ bOR:
     or [bp], ax
     ret
 
+; ( ahal -- alah )
+hXCHG:
+    dw hOR
+    db 4, 'xch'
+bXCHG:
+    mov ax, [bp]
+    xchg al, ah
+    mov [bp], ax
+    ret
+
 ; ( a b -- f )
 hEQ:
-    dw hOR
+    dw hXCHG
     db 1, '=..'
 bEQ:
     xor bx, bx
