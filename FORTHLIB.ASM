@@ -515,9 +515,20 @@ bAT:
     mov [bp], bx
     ret
 
+; ( addr -- n )
+hCAT:
+    dw hAT
+    db 2, 'c@.'
+bCAT:
+    mov bx, [bp]
+    mov bl, [bx]
+    xor bh, bh
+    mov [bp], bx
+    ret
+
 ; ( n addr -- )
 hBANG:
-    dw hAT
+    dw hCAT
     db 1, '!..'
 bBANG:
     popreg bx  ; addr
@@ -525,26 +536,32 @@ bBANG:
     mov [bx], ax
     ret
 
-hM2S:
+; ( n addr -- )
+hCBANG:
     dw hBANG
+    db 2, 'c!.'
+bCBANG:
+    popreg bx  ; addr
+    popreg ax  ; value
+    mov [bx], al
+    ret
+
+hM2S:
+    dw hCBANG
     db 2, '>s.'
 bM2S:
     push 0b900h
     pop es
-
     lea si, Free
     xor di, di
     mov cx, 2000
-
 @@screen:
     lodsb
     mov ah, 07h
     stosw
     loop @@screen
-
     push ds
     pop es
-
     ret
 
 hS2M:
@@ -553,16 +570,13 @@ hS2M:
 bS2M:
     push 0b900h
     pop ds
-
     xor si, si
     lea di, Free
     mov cx, 2000
-
 @@screen2:
     lodsw
     stosb
     loop @@screen2
-
     push es
     pop ds
     ret
@@ -578,6 +592,64 @@ Trim:
     rep stosb
     ret
 
+CursorMove:
+    push ax
+    mov ah, 0fh
+    int 10h      ; get active page
+    mov ah, 03h
+    int 10h      ; get cursor position: dh=row, dl=col
+    pop ax
+    cmp al, 0    ; extended character?
+    jne @@crt    ; ...no? then advance cursor
+    cmp ah, 48h
+    je @@cup
+    cmp ah, 50h
+    je @@cdn
+    cmp ah, 4bh
+    je @@clt
+    cmp ah, 4dh
+    je @@crt
+    cmp ah, 49h
+    je @@cpgup
+    cmp ah, 51h
+    je @@cpgdn
+    cmp ah, 47h
+    je @@chome
+    cmp ah, 4fh
+    je @@cend
+    ret
+@@cpgup:
+    sub dh, 4
+    jmp @@cmove
+@@cpgdn:
+    add dh, 4
+    jmp @@cmove
+@@chome:
+    sub dl, 4
+    jmp @@cmove
+@@cend:
+    add dl, 4
+    jmp @@cmove
+@@cup:
+    dec dh
+    jmp @@cmove
+@@cdn:
+    inc dh
+    jmp @@cmove
+@@clt:
+    dec dl
+    jmp @@cmove
+@@crt:
+    inc dl
+    ; fall through...
+@@cmove:
+    mov ah, 0fh
+    int 10h      ; get active page
+    mov ah, 02h
+    int 10h      ; set cursor position
+@@cdone:
+    ret
+
 hEDIT:
     dw hS2M
     db 4, 'edi'
@@ -585,70 +657,32 @@ bEDIT:
     call Trim
     call bM2S
     mov ax, 0501h
-    int 10h
+    int 10h      ; switch to page 1
     xor dx, dx
-    inc dx
-    xor bx, bx
-    inc bh
+    mov bh, 1
     mov ah, 02h
-    int 10h
+    int 10h      ; move cursor to 0,0 (top left)
 @@eloop:
-    xor dx, dx
-    inc dx
     xor ah, ah
-    int 16h
+    int 16h      ; get keystroke
     cmp al, 9    ; tab
     je @@edone
-; Key handling
-    cmp al, 0
-    jne @@emit
-    dec dx
-    cmp ah, 48h
-    je @@eup
-    cmp ah, 50h
-    je @@edn
-    cmp ah, 4bh
-    je @@elt
-    cmp ah, 4dh
-    je @@ert
-    jmp @@emit
-@@eup:
-    mov dh, 0ffh
-    jmp @@emove
-@@edn:
-    mov dh, 01h
-    jmp @@emove
-@@elt:
-    mov dl, 0ffh
-    jmp @@emove
-@@ert:
-    mov dl, 01h
-    jmp @@emove
-@@emit:
+    cmp al, 0    ; extended char
+    je @@emove
+    push ax
     mov ah, 0ah
     xor bx, bx
-    inc bh
+    inc bh       ; page 1
     mov cx, 1
-    int 10h
-    ; Fall through
+    int 10h      ; write character
+    pop ax
 @@emove:
-    mov di, dx
-    mov ah, 03h
-    xor bx, bx
-    inc bh
-    int 10h
-    mov bx, di
-    add dh, bh
-    add dl, bl
-    xor bx, bx
-    inc bh
-    mov ah, 02h
-    int 10h
+    call CursorMove
     jmp @@eloop
 @@edone:
     call bS2M
     mov ax, 0500h
-    int 10h
+    int 10h      ; switch to page 0
     ret
 
 lastheader = hEDIT
