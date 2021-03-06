@@ -503,20 +503,11 @@ bXT:
     mov [bp], ax      ; xt
     ret
 
-; ( xt -- )
-hCALL:
-    dw hXT
-    db 4, 'cal'
-bCALL:
-    popreg bx
-    call bx
-    ret
-
 ; --- Memory ---
 
 ; ( addr -- n )
 hAT:
-    dw hCALL
+    dw hXT
     db 1, '@..'
 bAT:
     mov bx, [bp]
