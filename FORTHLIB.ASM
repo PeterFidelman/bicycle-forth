@@ -194,7 +194,7 @@ hDOT:
     db 1, '...'
 bDOT:
     popreg ax
-    mov bx, word ptr [base]
+    mov bx, word ptr [vBASE]
     cmp bx, 10
     jne @@decrec
     cmp ax, 0
@@ -232,7 +232,7 @@ hBASE:
     dw hDOT
     db 4, 'bas'
 bBASE:
-    lea ax, [base]
+    lea ax, [vBASE]
     pushreg ax
     ret
 
@@ -355,19 +355,10 @@ bREDO:
 
 ; --- Compiler/interpreter ---
 
-; Sets the input source to console (keyboard)
-; ( -- )
-hQUERY:
-    dw hREDO
-    db 5, 'que'
-bQUERY:
-    mov word ptr [vINPUT_SOURCE_FN], offset Line
-    ret
-
 ; Adds a dictionary header.  Its name is read from the input stream.
 ; ( -- )
 hCREATE:
-    dw hQUERY
+    dw hREDO
     db 6, 'cre'
 bCREATE:
     mov di, word ptr [vHERE]

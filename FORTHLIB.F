@@ -5,5 +5,3 @@
 hex
 : scan  0 >ax 16 int ax> ;
 : clip  scan curmv >clip ff and if!0 ret redo ;
-query
-

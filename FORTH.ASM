@@ -74,21 +74,23 @@ EntryPoint:
 ; into threaded code.  To make the outer interpreter, we need:
 ; - An input source filling an input buffer.  We'll define a word named
 ;   LINE as the console input source.
+; - QUERY, to select the console input source.
 ; - LETTER, to fetch a letter from the input buffer.
 ; - WORD, to fetch a whitespace-delimited token (word) from the input buffer.
 ; - NUMBER, to translate a word to a number.
 ; - FIND, to translate a word to a dictionary entry.
 ; - ABORT, to reset the interpreter's state on error.
 ; - [, to enter interpreting mode.
-; - ], to enter compiling mode
+; - ], to enter compiling mode.
 ; - COLD, the interpreter's entry point.
 ; 
 ; And the following variables:
 ; - vINPUT_CURSOR, address of first unread character in the input buffer.
 ; - vINPUT_SOURCE_FN, address of function to refill the buffer.
 ; - vINTERPRETING, whether to interpret words or compile words.
-; -,vLATEST, address of the dictionary header of the newest word.
+; - vLATEST, address of the dictionary header of the newest word.
 ; - vHERE, address of the first free byte in the memory image.
+; - vBASE, the base to use when parsing and printing integers.
 ;
 ; Because we're about to define our first Forth word, we also need to pick a
 ; dictionary format, so the interpreter can find these words later (this is
@@ -159,11 +161,20 @@ adv:
     inc word ptr [vINPUT_CURSOR]
     ret
 
+; Sets the input source to console (keyboard)
+; ( -- )
+hQUERY:
+    dw 0  ; This is the first word in the dictionary.
+    db 5, 'que'
+bQUERY:
+    mov word ptr [vINPUT_SOURCE_FN], offset Line
+    ret
+
 ; Retrieves a letter from the input buffer
 ; If the letter is non-0Dh then moves to the next letter
 ; ( -- n )
 hLETTER:
-    dw 0  ; This is the first word in the dictionary.
+    dw hQUERY
     db 6, 'let'
 bLETTER:
     mov si, word ptr [vINPUT_CURSOR]
@@ -188,7 +199,9 @@ bWORD:
     add bp, 4
 @@seeking_word:
     mov al, [si]
-    cmp al, 0Dh
+    cmp al, 0Dh  ; ^M
+    je @@terminator
+    cmp al, 1Ah  ; ^Z
     je @@terminator
     cmp al, 20h
     ja @@in_word
@@ -240,16 +253,16 @@ bNUMBER:
     push cx
     mov al, [si]
     lea di, higits
-    mov bx, word ptr [base]
+    mov bx, word ptr [vBASE]
     lea cx, [bx + 1]         ; cx:=bx+1
     repne scasb
     sub bx, cx
     pop cx
     pop ax
-    cmp bl, byte ptr [base]  ; narrower access ok because little endian
+    cmp bl, byte ptr [vBASE] ; narrower access ok because little endian
     jae @@bail
 ; incorporate digit
-    mul word ptr [base]
+    mul word ptr [vBASE]
     add ax, bx
     inc si
     loop @@parse_digit
@@ -265,7 +278,7 @@ bNUMBER:
     ret
 higits:
     db '0123456789abcdef'
-base:
+vBASE:
     dw 10
 
 ; Finds a word in the dictionary.
@@ -382,7 +395,7 @@ bCOLD:
     mov word ptr [vINPUT_SOURCE_FN], ax
 
     ; Reset misc variables
-    mov word ptr [base], 10
+    mov word ptr [vBASE], 10
 
 WARM:
     ; Set up fPSP for an empty data stack.  See the memory map.
@@ -397,7 +410,7 @@ WARM:
     ; Switch to interpreting
     call bLBRACKET
 
-QUERY:
+MORE:
     call [word ptr vINPUT_SOURCE_FN]
 INTERPRET:
 @@get_word:
@@ -406,7 +419,10 @@ INTERPRET:
     jne @@is_word
 ; no more words
     sub bp, 4
-    jmp QUERY
+    cmp al, 1Ah  ; ^Z?
+    jne MORE
+    call bQUERY  ; automatically switch to console input source on ^Z
+    jmp MORE
 @@is_word:
     call bFIND                 ; ( a len immed? xt )
     mov bx, [bp]
