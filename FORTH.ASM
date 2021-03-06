@@ -380,6 +380,9 @@ bCOLD:
     lea ax, [adv]
     mov word ptr [vINPUT_SOURCE_FN], ax
 
+    ; Reset misc variables
+    mov word ptr [base], 10
+
 WARM:
     ; Set up fPSP for an empty data stack.  See the memory map.
     mov bp, 0FBFEh
