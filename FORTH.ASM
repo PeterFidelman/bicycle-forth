@@ -29,6 +29,7 @@
 ; [2000 bytes reserved for startup script]
 ; ....-....: Forth dictionary (grows towards higher addresses)
 ;    ...
+;*FB00-FB7F: Editor clipboard (128 chars)*
 ;*FB80-FB81: Reserved for INT 21h function 0Ah*
 ;*FB82-FBFF: Forth line input buffer (126 chars)*
 ; FC00-....: Forth data stack (grows towards higher addresses)

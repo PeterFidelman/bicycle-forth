@@ -546,20 +546,30 @@ bCBANG:
     mov [bx], al
     ret
 
+PushVideoBase:
+    mov ah, 0fh
+    int 10h      ; get active page
+    xor bl, bl   ; page 0 -> bx=0000, page 1 -> bx=0100
+    add bh, 0b8h ; page 0 -> bx=b800, page 1 -> bx=b900
+    pop dx       ; dx := return address
+    push bx
+    jmp dx       ; return to caller, leaving base address on stack
+
 hM2S:
     dw hCBANG
     db 2, '>s.'
 bM2S:
-    push 0b900h
-    pop es
     lea si, Free
     xor di, di
     mov cx, 2000
-@@screen:
+@@expand_area:
+    call PushVideoBase
+    pop es
+@@expand:
     lodsb
     mov ah, 07h
     stosw
-    loop @@screen
+    loop @@expand
     push ds
     pop es
     ret
@@ -568,15 +578,16 @@ hS2M:
     dw hM2S
     db 2, 's>.'
 bS2M:
-    push 0b900h
-    pop ds
     xor si, si
     lea di, Free
     mov cx, 2000
-@@screen2:
+@@condense_area:
+    call PushVideoBase
+    pop ds
+@@condense:
     lodsw
     stosb
-    loop @@screen2
+    loop @@condense
     push es
     pop ds
     ret
@@ -592,6 +603,12 @@ Trim:
     rep stosb
     ret
 
+; ( n -- n )
+hCURMV:
+    dw hS2M
+    db 5, 'cur'
+bCURMV:
+    mov ax, [bp]
 CursorMove:
     push ax
     mov ah, 0fh
@@ -650,14 +667,45 @@ CursorMove:
 @@cdone:
     ret
 
+LineStartAddr:
+    mov ah, 0fh
+    int 10h         ; get active page
+    mov ah, 03h
+    int 10h         ; get cursor position: dh=row, dl=col
+    mov al, dh
+    mul byte ptr [scrwidth] ; ax := al*160
+    ret
+scrwidth: db 160
+
+; Copy current line to clipboard
+; ( -- )
+hTOCLIP:
+    dw hCURMV
+    db 5, '>cl'
+bTOCLIP:
+    call LineStartAddr
+    mov si, ax      ; start address of line
+    mov di, 0fb00h  ; clipboard
+    mov cx, 80      ; entire line
+    jmp @@condense_area
+
+; Paste clipboard to screen
+FromClip:
+    call LineStartAddr
+    mov si, 0fb00h  ; clipboard
+    mov di, ax      ; start address of line
+    mov cx, 80      ; entire line
+    jmp @@expand_area
+
+; ( -- )
 hEDIT:
-    dw hS2M
+    dw hTOCLIP
     db 4, 'edi'
 bEDIT:
-    call Trim
-    call bM2S
     mov ax, 0501h
     int 10h      ; switch to page 1
+    call Trim
+    call bM2S
     xor dx, dx
     mov bh, 1
     mov ah, 02h
@@ -667,6 +715,10 @@ bEDIT:
     int 16h      ; get keystroke
     cmp al, 9    ; tab
     je @@edone
+    cmp al, 03h  ; ctrl-c
+    je @@ecopy
+    cmp al, 16h  ; ctrl-v
+    je @@epaste
     cmp al, 0    ; extended char
     je @@emove
     push ax
@@ -678,6 +730,12 @@ bEDIT:
     pop ax
 @@emove:
     call CursorMove
+    jmp @@eloop
+@@ecopy:
+    call bTOCLIP
+    jmp @@eloop
+@@epaste:
+    call FromClip
     jmp @@eloop
 @@edone:
     call bS2M
