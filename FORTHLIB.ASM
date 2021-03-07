@@ -153,11 +153,21 @@ intx:  db 03h
     sub bp, 2                ; pop X from stack
     ret
 
+; ( -- n )
+hFLAGS:
+    dw hINT
+    db 5, 'fla'
+bFLAGS:
+    lahf
+    mov al, ah
+    pushreg ax
+    ret
+
 ; --- I/O ---
 
 ; ( -- n )
 hKEY:
-    dw hINT
+    dw hFLAGS
     db 3, 'key'
 bKEY:
     xor ah, ah
@@ -177,20 +187,9 @@ bEMIT:
     int 10h
     ret
 
-; ( -- )
-hCR:
-    dw hEMIT
-    db 2, 'cr.'
-bCR:
-    pushval 0Dh
-    pushval 0Ah
-    call bEMIT
-    call bEMIT
-    ret
-
 ; ( n -- )
 hDOT:
-    dw hCR
+    dw hEMIT
     db 1, '...'
 bDOT:
     popreg ax
@@ -537,6 +536,17 @@ bCBANG:
     mov [bx], al
     ret
 
+; --- Editor ---
+
+; ( -- a )
+hTAPE:
+    dw hCBANG
+    db 4, 'tap'
+bTAPE:
+    mov ax, offset [Free]
+    pushreg ax
+    ret
+
 PushVideoBase:
     mov ah, 0fh
     int 10h      ; get active page
@@ -547,7 +557,7 @@ PushVideoBase:
     jmp dx       ; return to caller, leaving base address on stack
 
 hM2S:
-    dw hCBANG
+    dw hTAPE
     db 2, '>s.'
 bM2S:
     lea si, Free
