@@ -437,9 +437,19 @@ bCOMMA:
     add word ptr [vHERE], 2
     ret
 
+hCCOMMA:
+    dw hCOMMA
+    db 2, 'c,.'
+bCCOMMA:
+    popreg ax
+    mov bx, word ptr [vHERE]
+    mov [bx], al
+    inc word ptr [vHERE]
+    ret
+
 ; Specify the phase II action of a defining-word
 hCTOR:
-    dw hCOMMA
+    dw hCCOMMA
     db 5, 'cto'
 bCTOR:
     call bCREATE
