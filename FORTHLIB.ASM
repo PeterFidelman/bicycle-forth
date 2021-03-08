@@ -382,18 +382,23 @@ bCREATE:
     sub bp, 4
     ret
 
+; Toggle bitmask "ah" of latest word's header
+FlipHeader:
+    mov bx, word ptr [vLATEST]  ; start of dictionary entry
+    add bx, 2                   ; advance to length/flags field
+    mov al, [bx]
+    xor al, ah
+    mov [bx], al
+    ret
+
 ; Mark the current word as immediate.
 ; ( -- )
 hIMMEDIATE:
     dw hCREATE
     db 89h, 'imm'  ; this word is itself immediate!
 bIMMEDIATE:
-    mov bx, word ptr [vLATEST]  ; start of dictionary entry
-    add bx, 2                   ; advance to length/flags field
-    mov al, [bx]
-    or al, 80h
-    mov [bx], al
-    ret
+    mov ah, 80h
+    jmp FlipHeader
 
 ; Begins a colon definition.  Its name is read from the input stream.
 ; ( -- )
@@ -403,19 +408,22 @@ hCOLON:
 bCOLON:
     call bCREATE
     call bRBRACKET
-    ret
+    mov ah, 20h    ; smudge
+    jmp FlipHeader
 
 ; Terminates a colon definition.
 ; ( -- )
 hSEMICOLON:
     dw hCOLON
-    db 81h, ';..'  ; immediate
+    db 81h, ';..'                 ; immediate
 bSEMICOLON:
     mov di, word ptr [vHERE]
     mov al, 0C3h                  ; "ret"
     stosb
     mov word ptr [vHERE], di
     call bLBRACKET                ; enter interpreting mode
+    mov ah, 20h                   ; unsmudge
+    jmp FlipHeader
     ret
 
 ; ( n -- )
