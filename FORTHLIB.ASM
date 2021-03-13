@@ -156,7 +156,7 @@ intx:  db 03h
 ; ( -- n )
 hFLAGS:
     dw hINT
-    db 5, 'fla'
+    db 6, 'fla'
 bFLAGS:
     lahf
     mov al, ah
@@ -424,7 +424,6 @@ bSEMICOLON:
     call bLBRACKET                ; enter interpreting mode
     mov ah, 20h                   ; unsmudge
     jmp FlipHeader
-    ret
 
 ; ( n -- )
 hCOMMA:
