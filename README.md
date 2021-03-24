@@ -1,6 +1,6 @@
 # Bicycle Forth
 
- This is a literate-programmed Forth in the spirit of Jonesforth, with the
+ This is a small Forth in the spirit of Jonesforth, with the
  following goals:
  - Run on 80186+
  - Minimum effort to working kernel
