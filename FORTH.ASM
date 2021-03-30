@@ -484,7 +484,11 @@ vHERE: dw Free + 2000
 ; --- End of interpreter ---
 
 ; --- Start of primitive (assembly) words ---
-INCLUDE FORTHLIB.ASM
+IFNDEF MINI
+  INCLUDE FORTHLIB.ASM
+ELSE
+  INCLUDE MINIFORT.ASM
+ENDIF
 
 ; --- End of assembly primitives ---
 
