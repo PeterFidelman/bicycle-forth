@@ -317,7 +317,7 @@ bGT0:
 ; ( f -- )
 hIFNZ:
     dw hGT0
-    db 4, 'if!'
+    db 2, 'if.'
 bIFNZ:
     popreg ax
     and ax,ax
