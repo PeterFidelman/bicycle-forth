@@ -1,0 +1,1 @@
+copy /b minicore.com + minifort.f minif.com
